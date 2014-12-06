@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+  .grid-background {
+    fill: #ccc;
+  }
+
+  .bar {
+    shape-rendering: crispEdges;
+    fill: #000;
+  }
+
+  .axis {
+    font: 10px sans-serif;
+  }
+
+  .axis text.label {
+    text-anchor: middle;
+    font-weight: bold;
+  }
+
+  .axis path {
+    stroke: none;
+    fill: none;
+  }
+
+  .axis line {
+    fill: none;
+    stroke: #000;
+  }
+
+  .grid text, .grid path {
+    fill: none;
+    stroke: none;
+  }
+
+  .grid line {
+    fill: none;
+    stroke: #fff;
+  }
+
+  .grid .minor line {
+    stroke: #ddd;
+  }
+
+</style>
+<body>
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script>
+
+    // make svg object in body
+    var margin = {top: 20, right: 30, bottom: 40, left: 40},
+        width = 800 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+    var svg = d3.select('body').append('svg')
+      .attr('width', width+margin.left+margin.right)
+      .attr('height', height+margin.top+margin.bottom)
+      .append('g')
+        .attr('transform', 'translate('+margin.left+','+margin.top+')');
+
+    // draw background for plot
+    svg.append('rect')
+      .attr('class', 'grid-background')
+      .attr('width', width)
+      .attr('height', height);
+
+    // d3 scale functions
+    var xscale = d3.scale.ordinal().rangeBands([0, width], 0.15);
+    var yscale = d3.scale.linear().range([height, 0]);
+
+    // d3 axis
+    var xaxis = d3.svg.axis().scale(xscale).orient('bottom');
+    var yaxis = d3.svg.axis().scale(yscale).orient('left').ticks(10, '%');
+
+    // import data from tsv file
+    d3.tsv("battusage.tsv", type, function(error, data) {
+
+      // normalize counts as percentages
+      var totalCounts = data.reduce(function(a, b) { return a + b.count; }, 0);
+      data = data.map(function(d) { d.count = (d.count/totalCounts); return d; });
+
+      // set scales according to imported data
+      xscale.domain(data.map(function(d) { return d.hour; }))
+      yscale.domain([0, d3.max(data, function(d) { return d.count; })]);
+
+      // draw x axis
+      svg.append('g')
+          .attr('class', 'x axis')
+          .attr('transform', 'translate(0,'+height+')')
+          .call(xaxis)
+        .append('text')
+          .attr('class', 'label')
+          .text('Hour of day')
+          .attr('x', width/2)
+          .attr('y', margin.bottom)
+          .attr('dy', '-.71em')
+
+
+      // draw y axis
+      svg.append('g')
+          .attr('class', 'y axis')
+          .call(yaxis)
+        .append('text')
+          .attr('class', 'label')
+          .attr('transform', 'rotate(-90)')
+          .attr('x', -height/2)
+          .attr('y', -margin.left)
+          .attr('dy', '.71em')
+          .text('Percentage of computer usage');
+
+      // draw y axis grid in background
+      svg.append('g')
+          .attr('class', 'grid')
+          .attr('transform', 'translate('+width+',0)')
+          .call(d3.svg.axis()
+            .scale(yscale).orient('left').ticks(20).tickSize(width))
+        .selectAll('.tick')
+          .data(yscale.ticks(10), function(d) { return d; })
+        .exit()
+          .classed('minor', true);
+
+      // draw bars
+      var bar = svg.selectAll('.bar').data(data)
+        .enter().append('rect')
+        .attr('class', 'bar')
+        .attr('x', function(d) { return xscale(d.hour); })
+        .attr('width', xscale.rangeBand())
+        .attr('y', function(d) { return yscale(d.count); })
+        .attr('height', function(d) { return height - yscale(d.count); });
+    });
+
+    function type(d) {
+      // force frequency from tsv to be a number
+      d.count = +d.count;
+      return d;
+    }
+
+  </script>
+</body>
